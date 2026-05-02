@@ -27,6 +27,14 @@ from pathlib import Path
 
 import httpx
 
+# Load OPENROUTER_API_KEY from Accord's .env if not already in environment
+_ACCORD_ENV = Path.home() / "Git/accord/orchestrator/.env"
+if "OPENROUTER_API_KEY" not in os.environ and _ACCORD_ENV.exists():
+    for _line in _ACCORD_ENV.read_text().splitlines():
+        if _line.startswith("OPENROUTER_API_KEY="):
+            os.environ["OPENROUTER_API_KEY"] = _line.split("=", 1)[1].strip()
+            break
+
 ACCORD_URL = "http://127.0.0.1:7878"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEEPSEEK_V3_MODEL = "deepseek/deepseek-chat"   # DeepSeek V3 on OpenRouter

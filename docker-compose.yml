@@ -1,0 +1,21 @@
+services:
+  accord:
+    build:
+      context: ${ACCORD_DIR:-../accord}
+      dockerfile: ../warp/docker/accord/Dockerfile
+    ports:
+      - "7878:7878"
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    volumes:
+      - ${HOME}/vault:/root/vault
+      - accord-db:/app/orchestrator
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:7878/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  accord-db:

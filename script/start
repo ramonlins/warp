@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Start the full Warp + Accord stack.
+#
+# Usage:
+#   ./script/start            # start Accord + Warp
+#   ./script/start --no-warp  # start Accord only (for agent-loop headless use)
+
+set -euo pipefail
+
+ACCORD_URL="http://localhost:7878/api/health"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+log() { echo "[start] $*"; }
+
+# ── Accord ────────────────────────────────────────────────────────────────────
+
+start_accord_docker() {
+    log "starting Accord via Docker Compose..."
+    cd "${REPO_ROOT}"
+    docker compose up -d accord
+    log "waiting for Accord to be healthy..."
+    until curl -sf "${ACCORD_URL}" > /dev/null 2>&1; do
+        sleep 1
+    done
+    log "Accord ready at ${ACCORD_URL}"
+}
+
+start_accord_local() {
+    local accord_dir="${ACCORD_DIR:-${HOME}/Git/accord}"
+    log "starting Accord from ${accord_dir}..."
+    cd "${accord_dir}"
+    bash orchestrator/run.sh &
+    ACCORD_PID=$!
+    log "waiting for Accord to be healthy (pid ${ACCORD_PID})..."
+    until curl -sf "${ACCORD_URL}" > /dev/null 2>&1; do
+        sleep 1
+    done
+    log "Accord ready at ${ACCORD_URL}"
+    cd "${REPO_ROOT}"
+}
+
+if curl -sf "${ACCORD_URL}" > /dev/null 2>&1; then
+    log "Accord already running"
+elif command -v docker &> /dev/null && docker info &> /dev/null 2>&1; then
+    start_accord_docker
+else
+    start_accord_local
+fi
+
+# ── Warp ──────────────────────────────────────────────────────────────────────
+
+if [[ "${1:-}" == "--no-warp" ]]; then
+    log "skipping Warp (--no-warp). Accord is up, agent-loop is ready."
+    log "  run: python3 script/agent_loop.py \"your task\""
+    exit 0
+fi
+
+log "starting Warp..."
+cd "${REPO_ROOT}"
+exec cargo run
